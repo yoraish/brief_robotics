@@ -36,7 +36,7 @@ for landmark in landmarks:
 # Add some poses.
 # Straight line between start and stop. Each are np.array(2x1).
 start = np.array([[0], [-0.1]])
-t = 0.2 # Radians.
+t = 0.1 # Radians.
 length = 2
 step = 0.1
 
@@ -52,13 +52,14 @@ g.add_edge(0, j, dx, dy, dt)
 
 for num in range(int(length/step)):
     # Change in local robot frame.
-    if num >= 10:
-        ut = -0.1
+    if num >= 15:
+        ut = -0.3
     else:
         ut = 0
-    ufwd = step
+    ux = step
+    uy = step/3
     new_t = recent_t + ut
-    new_xy = recent_xy + ufwd * np.array([[np.cos(new_t), np.sin(new_t)]]).T
+    new_xy = recent_xy + np.array([[np.cos(new_t), -np.sin(new_t)], [np.sin(new_t), np.cos(new_t)]]).dot(np.array([[ux, uy]]).T)
     dx, dy, dt = g.relative_transform(recent_xy[0][0], recent_xy[1][0], recent_t, new_xy[0][0], new_xy[1][0], new_t)
     i = recent_j
     j = recent_j + 1
@@ -74,7 +75,7 @@ for num in range(int(length/step)):
 
     # If close to a landmark, draw an edge.
     for lix, l in enumerate(landmarks):
-        if np.linalg.norm(new_xy - np.array([l[:2]]).T) <= 0.3:
+        if np.linalg.norm(new_xy - np.array([l[:2]]).T) <= 0.4:
             ldx, ldy, ldt = g.relative_transform(l[0],l[1],l[2], recent_xy[0][0],recent_xy[1][0], recent_t)
 
             print(lix, "-->", j, " with tf ", ldx, ldy, ldt)
