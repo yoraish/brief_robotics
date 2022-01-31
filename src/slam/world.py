@@ -5,24 +5,6 @@ import yaml
 import rosbag
 
 
-def relative_transform(xi, yi, ti, xj, yj, tj):
-    # Returns the pose of j in the frame of i.
-    R = np.array([[np.cos(ti), -np.sin(ti)], 
-                  [np.sin(ti), np.cos(ti)]])
-    shifted_j = np.array([[xj], [yj]]) - np.array([[xi], [yi]])
-    j_in_i = R.T.dot(shifted_j)
-    # print(xi, yi, ti, xj, yj, tj)
-    # print("-->", j_in_i[0][0], j_in_i[1][0], tj - ti)
-    # import matplotlib.pyplot as plt
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.arrow(xi, yi, 0.1 * np.cos(ti), 0.1*np.sin(ti), color = 'b')
-    # ax.arrow(xj, yj, 0.1 * np.cos(tj), 0.1*np.sin(tj), color = 'r')
-    # ax.scatter([xi,xj], [yi, yj])
-    # ax.set_aspect("equal")
-    # plt.show()
-    return j_in_i[0][0], j_in_i[1][0], tj - ti
-
 def deg_to_rad(deg):
     rad = deg/360.0*2*np.pi
     rad = ((rad + np.pi) % (2 * np.pi) ) - np.pi
@@ -138,7 +120,7 @@ if __name__ == "__main__":
                 j = recent_pose_ix + 1
                 recent_pose_ix = j
                 recent_location_time = t.to_sec()
-                dx, dy, dt = relative_transform(*(recent_location_xyt + [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]))
+                dx, dy, dt = g.relative_transform(*(recent_location_xyt + [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]))
                 g.add_edge(i, j, dx, dy, dt, [msg.location.x, msg.location.y, deg_to_rad(msg.heading)])
                 recent_location_xyt = [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]
 
@@ -155,10 +137,6 @@ if __name__ == "__main__":
             recent_landmark_time = t.to_sec()
             lix = int(msg.header.frame_id[len("beacon"):])
 
-            # # If the most recent location was seen less than 100ms ago, then create an edge between this beacon and that most recent location.
-            # if recent_location_xyt is not None:
-            #     if t.to_sec() - recent_location_time < 0.1:
-            #         odom_is_rooted = True
 
         if len(g.edges) > 26:
             break

@@ -27,8 +27,8 @@ class Graph():
 
         # Costs.
         self.ODOM_COST = 1
-        self.LANDMARK_COST = 300
-        self.ASSIGNMENT_COST = 200
+        self.LANDMARK_COST = 10
+        self.ASSIGNMENT_COST = 10
 
         # Landmarks.
         self.landmarks = set()
@@ -59,6 +59,32 @@ class Graph():
             raise RuntimeError("Matrices A, C already initialized, aborting reinitialization.")
         
 
+    def relative_transform(self, xi, yi, ti, xj, yj, tj):
+        # Returns the pose of j in the frame of i.
+        R = np.array([[np.cos(ti), -np.sin(ti)], 
+                    [np.sin(ti), np.cos(ti)]])
+        shifted_j = np.array([[xj], [yj]]) - np.array([[xi], [yi]])
+        j_in_i = R.T.dot(shifted_j)
+
+        # print(xi, yi, ti, xj, yj, tj)
+        # print("-->", j_in_i[0][0], j_in_i[1][0], tj - ti)
+        # import matplotlib.pyplot as plt
+        # fig = plt.figure()
+        # ax = fig.add_subplot(121)
+        # ax.arrow(xi, yi, 0.1 * np.cos(ti), 0.1*np.sin(ti), color = 'b')
+        # ax.arrow(xj, yj, 0.1 * np.cos(tj), 0.1*np.sin(tj), color = 'r')
+        # ax.scatter([xi,xj], [yi, yj])
+        # ax.set_aspect("equal")
+        # ax.grid()
+
+        # ax = fig.add_subplot(122)
+        # ax.arrow(j_in_i[0][0], j_in_i[1][0], 0.1 * np.cos(tj - ti), 0.1*np.sin(tj - ti), color = 'r')
+        # ax.scatter([0, j_in_i[0][0]], [0, j_in_i[1][0]])
+        # ax.grid()
+        # ax.set_aspect("equal")
+        # plt.show()
+
+        return j_in_i[0][0], j_in_i[1][0], tj - ti
 
 
     def add_edge(self, i, j, dx, dy, dt, prior_xyt = None):
@@ -99,33 +125,7 @@ class Graph():
             self.d = np.array([[dx],
                             [dy]]) * self.ASSIGNMENT_COST
             return
-        '''
-        else:
-            
-            # Expand the angle association matrix with zeros.
-            self.A = np.hstack((self.A, np.zeros((self.A.shape[0], 1))))
-            self.A = np.vstack((self.A, np.zeros((1, self.A.shape[1]))))
 
-            # Expand the angle vector.
-            self.b = np.vstack((self.b, np.array([tj]) * cost))
-
-            # Expand the angle matrix.
-            self.A[-1, i] = -1.0 * cost
-            self.A[-1, j] = 1.0  * cost
-
-            # Either optimize now for angles and then also for xy, or leave it for later.
-            if self.online:
-                # Optimize for angles.
-                t_hat = np.linalg.pinv(self.A).dot(self.b)
-
-                # Reconstruct xy matrix with angle estimates.  
-                raise NotImplementedError
-                # for edge in self.edges:
-                    # Expand the xy vector.
-                    # self.C = np.hstack((self.C, np.zeros((self.C.shape[0], 1))))
-                    # self.C = np.vstack((self.C, np.zeros((1, self.C.shape[1]))))
-                    # self.d = np.vstack((self.d, np.array([tj]) * cost))
-        '''
 
     def optimize(self):
         # Build the angles matrix and vector.
@@ -153,7 +153,6 @@ class Graph():
         # Optimize for angles.
         t_hat = np.linalg.pinv(self.A).dot(self.b)
 
-        print(t_hat)
 
         # Build the xy matrix and vector.
         self.C = np.array([[1, 0],
@@ -195,7 +194,6 @@ class Graph():
                 self.C[-1, 2*edge.j + 1] =  np.cos(t_hat[edge.i]) * edge.cost 
 
 
-        print(self.C)
         # Solve for the positions.
         x_hat = np.linalg.pinv(self.C).dot(self.d)
         self.x_hat, self.t_hat = x_hat, t_hat
@@ -216,6 +214,7 @@ class Graph():
             if i == j:
                 ax.arrow(dx, dy, self.arrow_length * np.cos(dt), self.arrow_length * np.sin(dt), width=self.arrow_width, color = "b", alpha = 0.2)
                 poses[j] = (dx, dy, dt)
+                ax.scatter(dx, dy)
 
             else:
                 # Take the pose of i and transform it to j. If i does not exist, disregard it. This means that the plot will only start after seeing at least one landmark. At indoor this is okay since the tile is a landmark.
@@ -237,7 +236,7 @@ class Graph():
                     R = np.array([[np.cos(poses[i][2]), -np.sin(poses[i][2])], 
                                 [np.sin(poses[i][2]), np.cos(poses[i][2])]])
 
-                    trans_j = R.dot(np.array([[dx], [dy]])) + np.array([[poses[i][0]], [poses[i][1]]])
+                    trans_j = np.array([[poses[i][0]], [poses[i][1]]]) + R.dot(np.array([[dx], [dy]]))
                     rot_j = poses[i][2] + dt
                     poses[j] = (trans_j[0][0], trans_j[1][0], rot_j)
 
