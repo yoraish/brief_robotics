@@ -45,8 +45,8 @@ g.visualize()
 # RUNNING THE WORLD (girls).
 # ==========================
 if __name__ == "__main__":
-    bagfile_path = "/home/yoraish/Desktop/yorai/data/bagfiles/28-135-production_2022-01-28-09-23-57.bag"
-    beacons_yaml_path = '/indoorRobotics/indoor_maps/production/28/beacons.yaml'
+    bagfile_path = "/home/yoraish/Desktop/yorai/data/bagfiles/20-74-production_2022-02-10-22-29-11.bag"
+    beacons_yaml_path = '/indoorRobotics/indoor_maps/production/20/beacons.yaml'
 
     g = Graph()
     # Start with getting the beacons of the zone.
@@ -96,51 +96,94 @@ if __name__ == "__main__":
     recent_landmark_time = 0
     lix = None
 
+    recent_odom_time = 0
     bag = rosbag.Bag(bagfile_path)
-    for topic, msg, t in bag.read_messages(topics=['/indoor/monitor/location', '/indoor/beacon/pose', '/indoor/mission/status']):
+    for topic, msg, t in bag.read_messages(topics=['/indoor/monitor/location', '/indoor/beacon/pose', '/indoor/mission/status', '/tf']):
 
-        if topic == "/indoor/monitor/location":
+        # if topic == "/indoor/monitor/location":
 
-            # If no landmark seen yet, do not add an odom pose.
-            if odom_is_rooted == False:
-                recent_location_xyt = [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]
-                recent_location_time = t.to_sec()
-                # Only root the odometry measurements when a link to a landmark is formed. This happens when a landmark measurement is recorded less than 100ms before an odom measurement.
-                if t.to_sec() - recent_landmark_time < 0.1:
-                    # Add a new pose with an edge to this landmark. The new pose gets the ix recent_pose_ix + 1
+        if topic == "/tf":
+            if msg.transforms[0].child_frame_id == "base_footprint" and msg.transforms[0].header.frame_id == "odom":
+                # if t.to_sec() - recent_odom_time < 2:
+                #     continue
+                recent_odom_time = t.to_sec()
+                x_msg = msg.transforms[0].transform.translation.x
+                y_msg = msg.transforms[0].transform.translation.y
+                t_msg = quat_to_rad(msg.transforms[0].transform.rotation.x, msg.transforms[0].transform.rotation.y, msg.transforms[0].transform.rotation.z, msg.transforms[0].transform.rotation.w)
+
+                # If no landmark seen yet, do not add an odom pose.
+                if odom_is_rooted == False:
+                    recent_location_xyt = [x_msg, y_msg, t_msg]
+                    recent_location_time = t.to_sec()
+                    # Only root the odometry measurements when a link to a landmark is formed. This happens when a landmark measurement is recorded less than 100ms before an odom measurement.
+                    if t.to_sec() - recent_landmark_time < 0.01:
+                        # Add a new pose with an edge to this landmark. The new pose gets the ix recent_pose_ix + 1
+                        j = recent_pose_ix + 1
+                        recent_pose_ix = j
+                        recent_location_time = t.to_sec()
+                        odom_is_rooted = True
+                        g.add_edge(lix, j, ldx, ldy, ldt, [x_msg, y_msg, t_msg])
+                        print("Rooting odom.")
+
+                # If we have previous landmark positions and previous poses, then add an edge between the previous location and this new one.
+                else:
+                    i = recent_pose_ix
                     j = recent_pose_ix + 1
                     recent_pose_ix = j
                     recent_location_time = t.to_sec()
-                    odom_is_rooted = True
-                    g.add_edge(lix, j, ldx, ldy, ldt, [msg.location.x, msg.location.y, deg_to_rad(msg.heading)])
-
-            # If we have previous landmark positions and previous poses, then add an edge between the previous location and this new one.
-            else:
-                i = recent_pose_ix
-                j = recent_pose_ix + 1
-                recent_pose_ix = j
-                recent_location_time = t.to_sec()
-                dx, dy, dt = g.relative_transform(*(recent_location_xyt + [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]))
-                g.add_edge(i, j, dx, dy, dt, [msg.location.x, msg.location.y, deg_to_rad(msg.heading)])
-                recent_location_xyt = [msg.location.x, msg.location.y, deg_to_rad(msg.heading)]
-
-                if t.to_sec() - recent_landmark_time < 0.01:
-                    # Add a new pose with an edge to this landmark. The new pose gets the ix recent_pose_ix + 1
-                    g.add_edge(lix, j, ldx, ldy, ldt, [msg.location.x, msg.location.y, deg_to_rad(msg.heading)])
-
-            
-        if topic == "/indoor/beacon/pose" and odom_is_rooted == False:
-            # Transform from beacon to robot.
-            ldx = msg.pose.pose.position.x
-            ldy = msg.pose.pose.position.y
-            ldt = quat_to_rad(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
-            recent_landmark_time = t.to_sec()
-            lix = int(msg.header.frame_id[len("beacon"):])
+                    dx, dy, dt = g.relative_transform(*(recent_location_xyt + [x_msg, y_msg, t_msg]))
+                    print("dt", dt)
+                    g.add_edge(i, j, dx, dy, dt, [x_msg, y_msg, t_msg])
+                    recent_location_xyt = [x_msg, y_msg, t_msg]
 
 
-        if len(g.edges) > 26:
+                    if t.to_sec() - recent_landmark_time < 0.01:
+                        # Add a new pose with an edge to this landmark. The new pose gets the ix recent_pose_ix + 1
+                        g.add_edge(lix, j, ldx, ldy, ldt, [x_msg, y_msg, t_msg])
+
+                        # Remove this landmark from being considered again.
+                        recent_landmark_time = 0
+
+
+                        #######
+                        """""
+                        R = np.array([[np.cos(g.edges[lix].t), -np.sin(g.edges[lix].t)], 
+                                    [np.sin(g.edges[lix].t), np.cos(g.edges[lix].t)]])
+
+                        world_trans_j = np.array([[ g.edges[lix].x ], [ g.edges[lix].y]]) + R.dot(np.array([[ldx], [ldy]]))
+                        world_rot_j =  g.edges[lix].t + dt
+                        g.add""_edge(j, j, world_trans_j[0][0], world_trans_j[1][0], world_rot_j)""" # Assignment of odom node.
+                        ####
+
+
+                
+        if topic == "/indoor/beacon/pose":
+            if msg.header.frame_id != "beacon0" and msg.header.frame_id != "beacon1":
+                # Transform from beacon to robot.
+                ldx = msg.pose.pose.position.x
+                ldy = msg.pose.pose.position.y
+                ldt = quat_to_rad(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
+                print("ldt", ldt)
+
+                recent_landmark_time = t.to_sec()
+                lix = int(msg.header.frame_id[len("beacon"):])
+                print(msg.header.frame_id)
+
+        ###################### STUPID TESTS ####################
+        if len(g.edges) > 598:
+            # Add one artificial beacon measurement that is just fixing the last node in place.
+            j = recent_pose_ix 
+            ldx = 0
+            ldy = 0
+            ldt = 0
+            lix = 6
+            g.add_edge(lix, j, ldx, ldy, ldt)
             break
+        ###################### END STUPID TESTS ####################
+
     bag.close()
 
+    print("Starting optimization on #edges=", len(g.edges))
     g.optimize()
+    print("Starting visualization.")
     g.visualize()

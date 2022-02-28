@@ -1,11 +1,9 @@
 # Just like the world, but fake.
 # A sanity check example.
 
-from cv2 import sort
 import numpy as np
-from graph import Graph
+from gtgraph import Graph
 import yaml
-import rosbag
 
 
 def deg_to_rad(deg):
@@ -32,7 +30,8 @@ g = Graph()
 recent_j = -1
 for landmark in landmarks:
     recent_j += 1
-    g.add_edge(recent_j,recent_j, landmark[0],landmark[1],landmark[2])
+    g.add_edge(recent_j,recent_j, landmark[0],landmark[1],landmark[2], 
+                prior_xyt=[landmark[0],landmark[1],landmark[2]])
 
 # Add some poses.
 # Straight line between start and stop. Each are np.array(2x1).
@@ -49,7 +48,7 @@ dx, dy, dt = g.relative_transform(landmarks[0][0],landmarks[0][1],landmarks[0][2
 recent_j += 1
 j = recent_j
 
-g.add_edge(0, j, dx, dy, dt)
+g.add_edge(0, j, dx, dy, dt, prior_xyt=[dx, dy, dt])# TODO this is only true if the first landmark is at 000.
 
 for num in range(int(length/step)):
     # Change in local robot frame.
@@ -80,7 +79,7 @@ for num in range(int(length/step)):
             ldx, ldy, ldt = g.relative_transform(l[0],l[1],l[2], recent_xy[0][0],recent_xy[1][0], recent_t)
 
             print(lix, "-->", j, " with tf ", ldx, ldy, ldt)
-            g.add_edge(lix, j, ldx, ldy, ldt) # Edge fom landmark.
+            g.add_edge(lix, j, ldx, ldy, ldt, [recent_xy[0][0],recent_xy[1][0], recent_t]) # Edge fom landmark.
             # g.add_edge(j, j, l[0] + ldx, l[1] + ldy, l[2] + ldt) # Assignment of odom node..
 
             break
