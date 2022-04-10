@@ -58,7 +58,7 @@ class Graph():
         # Visualization.
         self.arrow_length = 0.05
         self.arrow_width = 0.001
-        self.map_path =  "/indoorRobotics/indoor_maps/production/28/rviz_map.pgm"
+        self.map_path =  ""
         self.map_resolution = 0.05 # Meters per pixel.
         self.map_width_pixels  = 0
         self.map_height_pixels = 0
@@ -178,7 +178,7 @@ class Graph():
                     # ax_maps.scatter([left_in_map[0][0]], [left_in_map[1][0]], color = c)
         return transformed_measurements
 
-    def visualize(self, additional_points = []): # Additional points is a list of tuples (x,y) or (x,y,t).
+    def visualize(self, vis_odom = True, additional_points = [], title_text = ""): # Additional points is a list of tuples (x,y) or (x,y,t).
         import matplotlib.pyplot as plt
         fig = plt.figure(0)
         ax = fig.add_subplot(111)
@@ -217,7 +217,8 @@ class Graph():
 
                 # If already have an estimate for j, draw that one.
                 if j in odom_poses.keys():
-                    ax.plot([odom_poses[i][0] ,odom_poses[j][0]], [odom_poses[i][1], odom_poses[j][1]], color = c, alpha = 0.2)
+                    if vis_odom:
+                        ax.plot([odom_poses[i][0] ,odom_poses[j][0]], [odom_poses[i][1], odom_poses[j][1]], color = c, alpha = 0.2)
                     continue
                 
                 # If no estimate for j, compute from the relative transform from i.
@@ -230,9 +231,11 @@ class Graph():
                     odom_poses[j] = (trans_j[0][0], trans_j[1][0], rot_j)
 
                     # Draw in red and if i is a landmark then draw blue line the landmark.
-                    ax.arrow(trans_j[0][0], trans_j[1][0], self.arrow_length * np.cos(rot_j), self.arrow_length * np.sin(rot_j), width=self.arrow_width, color = "y", alpha = 0.2)
+                    if vis_odom:
+                        ax.arrow(trans_j[0][0], trans_j[1][0], self.arrow_length * np.cos(rot_j), self.arrow_length * np.sin(rot_j), width=self.arrow_width, color = "y", alpha = 0.2)
 
-                    ax.plot([odom_poses[i][0] ,trans_j[0][0]], [odom_poses[i][1], trans_j[1][0]], color = c, alpha = 0.2, label = "Odometry")
+                    if vis_odom:
+                        ax.plot([odom_poses[i][0] ,trans_j[0][0]], [odom_poses[i][1], trans_j[1][0]], color = c, alpha = 0.2, label = "Odometry")
 
                     # Draw prior if it exists.
                     '''if j in self.prior_xyt:
@@ -300,21 +303,44 @@ class Graph():
 
         # Show the additional points, if those exist.
         if additional_points:
-            ax.plot([x[0] for x in additional_points], [x[1] for x in additional_points], c = 'k')
-            ax.scatter([x[0] for x in additional_points], [x[1] for x in additional_points], c = 'k')
+            ax.plot([x[0] for x in additional_points], [x[1] for x in additional_points], c = 'k', alpha = 0.2)
+            # ax.scatter([x[0] for x in additional_points], [x[1] for x in additional_points], c = 'k')
+            for x in additional_points:
+                ax.arrow(x[0], 
+                         x[1], 
+                         self.arrow_length * np.cos(x[2]), 
+                         self.arrow_length * np.sin(x[2]), 
+                         width=self.arrow_width, color = "k", alpha = 0.2)
 
         # ax.legend()
         # ax.set_title("""self.ODOM_NOISE = %d
         #                 self.LANDMARK_NOISE = %d
-        #                 self.PRIOR_NOISE = %d""" % (self.ODOM_NOISE, self.LANDMARK_NOISE, self.PRIOR_NOISE))
+        #                 self.PRIOR_NOISE = %d
+        #                 %s""" % (int(self.ODOM_NOISE), int(self.LANDMARK_NOISE), int(self.PRIOR_NOISE), title_text))
+        ax.set_title(title_text)
 
         # Visualize the measurements on the map.
         fig_rviz = plt.figure(2)
         ax_rviz = fig_rviz.add_subplot(111)
-        self.ax_add_map(ax_rviz, self.map_path)
+        
+        # Get the map as an array.
+        map_array_pixels = self.read_pgm(self.map_path)
+        # self.ax_add_map(ax_rviz, self.map_path)
         for pose in gt_measurements_in_map:
             x_pixels, y_pixels = self.world_to_map(*pose[:2])
-            ax_rviz.scatter([x_pixels], [y_pixels], color = 'r')
+            # ax_rviz.scatter([x_pixels], [y_pixels], color = 'r')
+            try:
+                map_array_pixels[int(y_pixels)][int(x_pixels)] = 150
+            except IndexError:
+                continue
+
+        for pose in odom_measurements_in_map:
+            x_pixels, y_pixels = self.world_to_map(*pose[:2])
+            try:
+                map_array_pixels[int(y_pixels)][int(x_pixels)] = 200
+            except IndexError:
+                continue
+        ax_rviz.imshow(map_array_pixels)#, cmap="gray")
 
         plt.show()
 

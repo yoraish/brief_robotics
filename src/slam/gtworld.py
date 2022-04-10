@@ -55,8 +55,8 @@ def transform_matrix_from_tf_msg(msg):
 # RUNNING THE WORLD (girls).
 # ==========================
 if __name__ == "__main__":
-    bagfile_path = "/home/yoraish/Desktop/yorai/data/bagfiles/28-135-production_2022-02-14-05-00-06.bag"
-    beacons_yaml_path = '/indoorRobotics/indoor_maps/production/28/beacons.yaml'
+    bagfile_path = "/home/yoraish/Desktop/yorai/data/bagfiles/20-74-production_2022-04-07-01-00-05.bag"
+    beacons_yaml_path = '/indoorRobotics/indoor_maps/production/20/beacons.yaml'
 
     # Keep the recent odom in map transform for computing initial estimates. map -> odom -> base_footprint.
     recent_odom_in_map = None
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     ekf_basefootprint_in_map = []
 
     g = Graph()
+    g.map_path = "/indoorRobotics/indoor_maps/staging/20/rviz_map.pgm"
     # Start with getting the beacons of the zone.
     with open (beacons_yaml_path , "r") as stream:
         try:
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     for topic, msg, t in bag.read_messages(topics=['/indoor/monitor/location', '/indoor/beacon/pose', '/indoor/mission/status', '/tf', '/sonar_right', '/sonar_left']):
 
         if topic == "/indoor/monitor/location":
-            ekf_basefootprint_in_map.append((msg.location.x, msg.location.y))
+            ekf_basefootprint_in_map.append((msg.location.x, msg.location.y, msg.heading * 3.141592653 / 180))
 
 
         if topic == "/tf":
@@ -219,7 +220,7 @@ if __name__ == "__main__":
         ###################### STUPID TESTS ####################
         # if len(g.edges) > 600:# 598:
         #     break
-            # Add one artificial beacon measurement that is just fixing the last node in place.
+            # # Add one artificial beacon measurement that is just fixing the last node in place.
             # j = recent_pose_ix 
             # ldx = 0
             # ldy = 0
@@ -234,4 +235,4 @@ if __name__ == "__main__":
     print("Starting optimization on #edges=", len(g.edges))
     g.optimize()
     print("Starting visualization.")
-    g.visualize(ekf_basefootprint_in_map)
+    g.visualize(vis_odom = False, additional_points=ekf_basefootprint_in_map, title_text=bagfile_path.split("/")[-1])
