@@ -2,7 +2,7 @@ import numpy as np
 from gtgraph import Graph, RangeMeasurement
 import yaml
 import rosbag
-
+from scipy.spatial.transform import Rotation as R
 
 
 def deg_to_rad(deg):
@@ -20,34 +20,20 @@ def quat_to_rad(x,y,z,w):
 
 def transform_matrix_from_tf_msg(msg):
     """
-    Credit for base code: https://automaticaddison.com/how-to-convert-a-quaternion-to-a-rotation-matrix/ 
+    Convert a transform message to a transformation matrix. 
     """
     # Extract the values from Q
     q0 = msg.transform.rotation.x
     q1 = msg.transform.rotation.y
     q2 = msg.transform.rotation.z
     q3 = msg.transform.rotation.w
-     
-    # First row of the rotation matrix
-    r00 = 2 * (q0 * q0 + q1 * q1) - 1
-    r01 = 2 * (q1 * q2 - q0 * q3)
-    r02 = 2 * (q1 * q3 + q0 * q2)
-     
-    # Second row of the rotation matrix
-    r10 = 2 * (q1 * q2 + q0 * q3)
-    r11 = 2 * (q0 * q0 + q2 * q2) - 1
-    r12 = 2 * (q2 * q3 - q0 * q1)
-     
-    # Third row of the rotation matrix
-    r20 = 2 * (q1 * q3 - q0 * q2)
-    r21 = 2 * (q2 * q3 + q0 * q1)
-    r22 = 2 * (q0 * q0 + q3 * q3) - 1
-     
+    
+    r = R.from_quat([q0, q1, q2, q3])
+
     # 3x3 rotation matrix
-    matrix = np.array([[r00, r01, r02, msg.transform.translation.x],
-                       [r10, r11, r12, msg.transform.translation.y],
-                       [r20, r21, r22, msg.transform.translation.z],
-                       [  0,   0,   0, 1]])
+    matrix = np.zeros((4,4))
+    matrix[:, 3:4] = np.array([[msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z, 1]]).T
+    matrix[:3, :3] = r.as_matrix()
                             
     return matrix
 
@@ -55,8 +41,8 @@ def transform_matrix_from_tf_msg(msg):
 # RUNNING THE WORLD (girls).
 # ==========================
 if __name__ == "__main__":
-    bagfile_path = "/home/yoraish/Desktop/yorai/data/bagfiles/20-74-production_2022-04-07-01-00-05.bag"
-    beacons_yaml_path = '/indoorRobotics/indoor_maps/production/20/beacons.yaml'
+    bagfile_path = "/media/yoraish/3261-3635/bagfiles/samples/30-136-staging_2022-07-02-12-45-02.bag"
+    beacons_yaml_path = '/indoorRobotics/indoor_maps/staging/30/beacons.yaml'
 
     # Keep the recent odom in map transform for computing initial estimates. map -> odom -> base_footprint.
     recent_odom_in_map = None
@@ -65,7 +51,7 @@ if __name__ == "__main__":
     ekf_basefootprint_in_map = []
 
     g = Graph()
-    g.map_path = "/indoorRobotics/indoor_maps/staging/20/rviz_map.pgm"
+    g.map_path = "/indoorRobotics/indoor_maps/staging/30/rviz_map.pgm"
     # Start with getting the beacons of the zone.
     with open (beacons_yaml_path , "r") as stream:
         try:
@@ -116,7 +102,7 @@ if __name__ == "__main__":
 
     recent_odom_time = 0
     bag = rosbag.Bag(bagfile_path)
-    for topic, msg, t in bag.read_messages(topics=['/indoor/monitor/location', '/indoor/beacon/pose', '/indoor/mission/status', '/tf', '/sonar_right', '/sonar_left']):
+    for topic, msg, t in bag.read_messages(topics=['/indoor/monitor/location', '/indoor/beacon/pose', '/indoor/star/pose', '/indoor/mission/status', '/tf', '/sonar_right', '/sonar_left']):
 
         if topic == "/indoor/monitor/location":
             ekf_basefootprint_in_map.append((msg.location.x, msg.location.y, msg.heading * 3.141592653 / 180))
@@ -195,7 +181,7 @@ if __name__ == "__main__":
 
 
                 
-        if topic == "/indoor/beacon/pose":
+        if topic == "/indoor/beacon/pose" or topic == "/indoor/star/pose":
             # if msg.header.frame_id != "beacon0" and msg.header.frame_id != "beacon1":
             # Transform from beacon to robot.
             ldx = msg.pose.pose.position.x
@@ -203,7 +189,10 @@ if __name__ == "__main__":
             ldt = quat_to_rad(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
 
             recent_landmark_time = t.to_sec()
-            lix = int(msg.header.frame_id[len("beacon"):])
+            if topic == "/indoor/beacon/pose":
+                lix = int(msg.header.frame_id[len("beacon"):])
+            elif topic == "/indoor/star/pose":
+                lix = int(msg.header.frame_id[len("star"):])
 
         if topic == "/sonar_right":
             if msg.range > 0:

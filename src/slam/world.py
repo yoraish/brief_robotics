@@ -1,4 +1,3 @@
-from cv2 import sort
 import numpy as np
 from graph import Graph
 import yaml
@@ -77,7 +76,7 @@ if __name__ == "__main__":
         t = deg_to_rad(t)
         print(beacon_num, x,y,t)
 
-        g.add_edge(beacon_num, beacon_num, x, y, t)
+        g.add_edge(beacon_num, beacon_num, x, y, t, [x,y,t])
 
     
 
@@ -170,7 +169,8 @@ if __name__ == "__main__":
                 print(msg.header.frame_id)
 
         ###################### STUPID TESTS ####################
-        if len(g.edges) > 598:
+        if len(g.edges) > 50:# 598:
+            break
             # Add one artificial beacon measurement that is just fixing the last node in place.
             j = recent_pose_ix 
             ldx = 0

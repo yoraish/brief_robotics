@@ -263,7 +263,7 @@ class Graph():
                             # ax_maps.scatter([left_in_map[0][0]], [left_in_map[1][0]], color = c)
         
         odom_measurements_in_map = self.transform_measurements(odom_poses)
-        ax_maps.scatter([p[0] for p in odom_measurements_in_map], [p[1] for p in odom_measurements_in_map], color = c)
+        ax_maps.scatter([p[0] for p in odom_measurements_in_map], [p[1] for p in odom_measurements_in_map], color = 'k')
         # ax_maps.scatter([p[0] for p in lefts], [p[1] for p in lefts], color = c)
 
 
