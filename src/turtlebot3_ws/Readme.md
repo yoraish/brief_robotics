@@ -25,12 +25,26 @@ sudo apt install ros-noetic-turtlebot3
 
 ### Running the code
 
-1. 
+1. Run this on **every terminal** first whenver you're running any code from [turtlebot_ws](./) directory. You can also add this to `~/.bashrc` if you prefer.
 
 ```
 export TURTLEBOT3_MODEL=burger
 ```
 
+2. Run the gazebo simulation environment.
+```
+roslaunch turtlebot3_gazebo turtlebot3_chouse_camera.launch
+```
+
+3. You can control the robot using keyboard by running:
+```
+roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+```
+
+4. Use rviz to perform any visualizations:
+```
+oslaunch turtlebot3_gazebo turtlebot3_gazebo_rviz.launch
+```
 
 
 
