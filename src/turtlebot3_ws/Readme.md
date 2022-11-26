@@ -18,6 +18,7 @@ sudo apt-get install ros-noetic-joy ros-noetic-teleop-twist-joy \
 sudo apt install ros-noetic-dynamixel-sdk
 sudo apt install ros-noetic-turtlebot3-msgs
 sudo apt install ros-noetic-turtlebot3
+sudo apt install ros-noetic-turtlebot3-gazebo
 ```
 
 3. Perform `catkin_make` on [turtlebot_ws](./) directory.
