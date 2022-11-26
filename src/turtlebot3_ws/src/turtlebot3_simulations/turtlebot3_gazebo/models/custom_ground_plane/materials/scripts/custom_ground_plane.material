@@ -1,0 +1,14 @@
+material CustomGroundPlane/Image
+    {
+      technique
+      {
+        pass
+        {
+
+          texture_unit
+          {
+            texture aruco.png
+          }
+        }
+      }
+    }

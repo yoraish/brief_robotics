@@ -1,5 +1,7 @@
+# turtlebot3 code
 **/build/**
 **/devel/**
+**/misc_code/*.png
 
 devel/
 logs/
