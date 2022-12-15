@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-.idea/
-src/optical_flow/data.bag
-src/slam/.ipynb_checkpoints/
-=======
 # turtlebot3 code
 **/build/**
 **/devel/**
@@ -59,4 +54,12 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
->>>>>>> 2d0f9fa250367bb70de572d7d262074613d097ff
+
+# ignoring idea
+.idea
+
+# ignoring checkpoints
+*.ipynb_checkpoints/
+
+#ignoring bag files
+*.bag
