@@ -54,3 +54,12 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# ignoring idea
+.idea
+
+# ignoring checkpoints
+*.ipynb_checkpoints/
+
+#ignoring bag files
+*.bag
